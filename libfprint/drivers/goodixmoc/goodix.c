@@ -742,9 +742,12 @@ fp_enroll_update_cb (FpiDeviceGoodixMoc  *self,
       return;
     }
 
-  if (resp->enroll_update.img_preoverlay > self->sensorcfg->config[3])
+  if ((resp->enroll_update.img_overlay > self->sensorcfg->config[2]) ||
+      (resp->enroll_update.img_preoverlay > self->sensorcfg->config[3]))
     {
-      fp_dbg ("Sample overlapping ratio is too High(%d): %d ",
+      fp_dbg ("Sample overlapping ratio is too High, overlay(%d): %d, preoverlay(%d): %d",
+              self->sensorcfg->config[2],
+              resp->enroll_update.img_overlay,
               self->sensorcfg->config[3],
               resp->enroll_update.img_preoverlay);
       /* here should tips move finger and try again */
@@ -753,7 +756,7 @@ fp_enroll_update_cb (FpiDeviceGoodixMoc  *self,
                                   NULL,
                                   fpi_device_retry_new (FP_DEVICE_RETRY_REMOVE_FINGER));
     }
-  else if (resp->enroll_update.rollback || resp->result == 0x73)
+  else if (resp->enroll_update.rollback || resp->result == 0x72 || resp->result == 0x73)
     {
       fpi_device_enroll_progress (FP_DEVICE (self),
                                   self->enroll_stage,
