@@ -319,13 +319,21 @@ gx_proto_parse_body (uint16_t cmd, FpiByteReader *byte_reader, pgxfp_cmd_respons
 
     case MOC_CMD0_UPDATE_CONFIG:
       {
+        uint8_t cfg_byte1 = 0;
+
         presp->finger_config.status = presp->result;
         /* to compatiable old version firmware */
         presp->finger_config.max_stored_prints = FP_MAX_FINGERNUM;
 
-        if (fpi_byte_reader_skip (byte_reader, 1))
-          fpi_byte_reader_get_uint8 (byte_reader,
-                                     &presp->finger_config.max_stored_prints);
+        if (fpi_byte_reader_get_uint8 (byte_reader, &cfg_byte1))
+          {
+            fpi_byte_reader_get_uint8 (byte_reader,
+                                       &presp->finger_config.max_stored_prints);
+            g_debug ("update_config body: status=0x%x, byte1=%u, max_stored_prints=%u",
+                     presp->finger_config.status,
+                     cfg_byte1,
+                     presp->finger_config.max_stored_prints);
+          }
       }
       break;
 
@@ -474,7 +482,17 @@ gx_proto_parse_body (uint16_t cmd, FpiByteReader *byte_reader, pgxfp_cmd_respons
                 presp->result = GX_FAILED;
                 break;
               }
-            g_debug ("match, score: %d, study: %d", score, study);
+            g_debug ("match, score: %u, study: %u, rejectdetail: 0x%x",
+                     score, study, presp->verify.rejectdetail);
+          }
+        else
+          {
+            if (fpi_byte_reader_get_uint16_le (byte_reader,
+                                               &presp->verify.rejectdetail))
+              g_debug ("no match, result: 0x%x, rejectdetail: 0x%x",
+                       presp->result, presp->verify.rejectdetail);
+            else
+              g_debug ("no match, result: 0x%x", presp->result);
           }
       }
       break;

@@ -427,6 +427,10 @@ fp_identify_capture_cb (FpiDeviceGoodixMoc  *self,
   fpi_device_report_finger_status_changes (FP_DEVICE (self),
                                            FP_FINGER_STATUS_PRESENT,
                                            FP_FINGER_STATUS_NONE);
+  fp_dbg ("Identify capture: result=0x%x, quality=%u, coverage=%u",
+          resp->result,
+          resp->capture_data_resp.img_quality,
+          resp->capture_data_resp.img_coverage);
   if (resp->capture_data_resp.img_quality == 0)
     {
       fpi_ssm_mark_failed (self->task_ssm,
@@ -715,6 +719,14 @@ fp_enroll_capture_cb (FpiDeviceGoodixMoc  *self,
   fpi_device_report_finger_status_changes (FP_DEVICE (self),
                                            FP_FINGER_STATUS_PRESENT,
                                            FP_FINGER_STATUS_NONE);
+  fp_dbg ("Enroll capture [stage %d/%d]: result=0x%x, quality=%u (min %u), coverage=%u (min %u)",
+          self->enroll_stage,
+          self->max_enroll_stage,
+          resp->result,
+          resp->capture_data_resp.img_quality,
+          self->sensorcfg->config[4],
+          resp->capture_data_resp.img_coverage,
+          self->sensorcfg->config[5]);
   if ((resp->capture_data_resp.img_quality < self->sensorcfg->config[4]) ||
       (resp->capture_data_resp.img_coverage < self->sensorcfg->config[5]))
     {
@@ -746,6 +758,16 @@ fp_enroll_update_cb (FpiDeviceGoodixMoc  *self,
       fpi_ssm_mark_failed (self->task_ssm, error);
       return;
     }
+
+  fp_dbg ("Enroll update [stage %d/%d]: result=0x%x, rollback=%d, overlay=%u (max %u), preoverlay=%u (max %u)",
+          self->enroll_stage,
+          self->max_enroll_stage,
+          resp->result,
+          resp->enroll_update.rollback,
+          resp->enroll_update.img_overlay,
+          self->sensorcfg->config[2],
+          resp->enroll_update.img_preoverlay,
+          self->sensorcfg->config[3]);
 
   if ((resp->enroll_update.img_overlay > self->sensorcfg->config[2]) ||
       (resp->enroll_update.img_preoverlay > self->sensorcfg->config[3]))
@@ -1070,6 +1092,13 @@ fp_init_version_cb (FpiDeviceGoodixMoc  *self,
     }
   fw_version = g_strndup ((const char *) resp->version_info.fwversion, sizeof (resp->version_info.fwversion));
   fp_info ("Firmware version: %s", fw_version);
+  {
+    g_autofree gchar *sensor = g_strndup ((const char *) resp->version_info.sensor, sizeof (resp->version_info.sensor));
+    g_autofree gchar *mcu = g_strndup ((const char *) resp->version_info.mcu, sizeof (resp->version_info.mcu));
+    g_autofree gchar *alg = g_strndup ((const char *) resp->version_info.algversion, sizeof (resp->version_info.algversion));
+    g_autofree gchar *proto = g_strndup ((const char *) resp->version_info.protocol, sizeof (resp->version_info.protocol));
+    fp_dbg ("Version detail: sensor=%s, mcu=%s, alg=%s, proto=%s", sensor, mcu, alg, proto);
+  }
   fpi_ssm_next_state (self->task_ssm);
 }
 
@@ -1083,6 +1112,9 @@ fp_init_config_cb (FpiDeviceGoodixMoc  *self,
       fpi_ssm_mark_failed (self->task_ssm, error);
       return;
     }
+  fp_dbg ("Sensor config updated: status=0x%x, max_stored_prints=%u",
+          resp->finger_config.status,
+          resp->finger_config.max_stored_prints);
   self->max_stored_prints = resp->finger_config.max_stored_prints;
   fpi_ssm_next_state (self->task_ssm);
 }
