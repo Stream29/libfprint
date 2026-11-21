@@ -43,6 +43,11 @@
 #define ACK_TIMEOUT (2000)
 #define DATA_TIMEOUT (5000)
 
+typedef enum {
+  GOODIXMOC_DRIVER_DEFAULT    = 0,
+  GOODIXMOC_DRIVER_TUNED_6594 = 1 << 0,
+} GoodixMocDriverFlags;
+
 
 struct _FpiDeviceGoodixMoc
 {
@@ -1422,6 +1427,7 @@ gx_fp_probe (FpDevice *device)
     case 0x650A:
     case 0x650C:
     case 0x6582:
+    case 0x6594:
     case 0x6A94:
     case 0x659A:
     case 0x6890:
@@ -1471,6 +1477,18 @@ gx_fp_init (FpDevice *device)
       return;
     }
   self->sensorcfg->config[6] = self->max_enroll_stage;
+
+  if (fpi_device_get_driver_data (device) & GOODIXMOC_DRIVER_TUNED_6594)
+    {
+      self->sensorcfg->config[2] = 85;
+      self->sensorcfg->config[3] = 75;
+      self->sensorcfg->config[4] = 25;
+      self->sensorcfg->config[7] = 20;
+      self->sensorcfg->config[8] = 40;
+      gx_proto_crc32_calc ((uint8_t *) self->sensorcfg,
+                           sizeof (*self->sensorcfg) - PACKAGE_CRC_SIZE,
+                           self->sensorcfg->crc_value);
+    }
 
   if (!g_usb_device_reset (fpi_device_get_usb_device (device), &error))
     {
@@ -1688,7 +1706,7 @@ static const FpIdEntry id_table[] = {
   { .vid = 0x27c6,  .pid = 0x6584,  },
   { .vid = 0x27c6,  .pid = 0x658C,  },
   { .vid = 0x27c6,  .pid = 0x6592,  },
-  { .vid = 0x27c6,  .pid = 0x6594,  },
+  { .vid = 0x27c6,  .pid = 0x6594,  .driver_data = GOODIXMOC_DRIVER_TUNED_6594 },
   { .vid = 0x27c6,  .pid = 0x659A,  },
   { .vid = 0x27c6,  .pid = 0x659C,  },
   { .vid = 0x27c6,  .pid = 0x6A94,  },
